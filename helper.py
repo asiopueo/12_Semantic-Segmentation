@@ -95,7 +95,10 @@ def gen_batch_function(data_folder, image_shape):
                 gt_images.append(gt_image)
 
             yield np.array(images), np.array(gt_images)
+
     return get_batches_fn
+
+
 
 
 def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape):
@@ -107,7 +110,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
     :param image_pl: TF Placeholder for the image placeholder
     :param data_folder: Path to the folder that contains the datasets
     :param image_shape: Tuple - Shape of image
-    :return: Output for for each test image
+    :return: Output for each test image
     """
     for image_file in glob(os.path.join(data_folder, 'image_2', '*.png')):
         image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
@@ -138,3 +141,10 @@ def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_p
         sess, logits, keep_prob, input_image, os.path.join(data_dir, 'data_road/testing'), image_shape)
     for name, image in image_outputs:
         scipy.misc.imsave(os.path.join(output_dir, name), image)
+
+
+
+
+
+
+
