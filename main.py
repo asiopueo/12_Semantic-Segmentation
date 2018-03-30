@@ -190,8 +190,13 @@ def run():
             validation_accuracy = evaluate(X_valid_gray, y_valid)
             print("The accuracy on the validation set is: {}".format(validation_accuracy))
         """
+        """
+        with tf.Session(graph = g) as sess:
+            tf.train.Saver().restore(sess,'./model')
+            top_k = tf.nn.top_k(sess.run(fc3, feed_dict={X: img_gray}), k=5, sorted=True)
 
-
+            print(sess.run(top_k))
+        """
 
         # TODO: Save inference data using helper.save_inference_samples
         #helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
