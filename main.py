@@ -41,6 +41,7 @@ def load_vgg(sess, vgg_path):
     
 
     return input_image, keep_prob, layer3_out, layer4_out, layer7_out
+
 tests.test_load_vgg(load_vgg, tf)
 
 
@@ -56,27 +57,27 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # TODO: Implement function
 
     # Upsample 2x
-    output = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output = tf.layers.conv2d_transpose(output, num_classes, 4, 2, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    pool_4 = tf.layers.pooling(vgg_layer4_out)
-    output = tf.add(output, pool_4)
+    output = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output = tf.layers.conv2d_transpose(output, num_classes, kernel_size=4, strides=(2,2), padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    pool_4 = tf.nn.maxpool(vgg_layer4_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='valid')
+    output_deconv_1 = tf.add(output, pool_4)
 
     # Upsample 2x
-    output = tf.layers.conv2d(output, num_classes, 1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output = tf.layers.conv2d_transpose(output, num_classes, 8, 8, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    pool_3 = tf.layers.pooling(vgg_layer3_out)
-    output = tf.add(output, pool_3)
+    output_tmp = tf.layers.conv2d(output_deconv_1, num_classes, kernel_size=1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output_tmp = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=4, strides=(8,8), padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    pool_3 = tf.nn.maxpool(vgg_layer3_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='valid')
+    output_deconv_2 = tf.add(output_tmp, pool_3)
 
     # Upsample 8x
-    output = tf.layers.conv2d(output, num_classes, 1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output = tf.layers.conv2d_transpose(output, num_classes, 8, 8, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output_tmp = tf.layers.conv2d(output_deconv_2, num_classes, kernel_size=1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=16, strides=(8,8), padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     
 
-
-
-    fcn_output = 
+    # some additional stuff here...
+    fcn_output = output
 
     return fcn_output
+
 tests.test_layers(layers)
 
 
@@ -91,11 +92,16 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     """
     # TODO: Implement function
 
+    input = correct_label
     logits = tf.reshape(input, (-1, num_classes))
-    train_op = 
-    cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits, labels)
+    
+    
+    cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits(logits=fc3, labels=one_hot_y)
+    loss_operation = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits, labels)
+    train_op = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
     return logits, train_op, cross_entropy_loss
+
 tests.test_optimize(optimize)
 
 
@@ -119,10 +125,24 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
         for image, label in get_batches_fn(batch_size):
             # Training
             with tf.Session() as sess:
+                input_image
+                correct_label
+                keep_prob
+                sess.run(train_op, feed_dict={X: input_image, y: correct_label})
 
+    """
+    def evaluate(X_data, y_data):
+        num_examples = len(X_data)
+        total_accuracy = 0
+        sess = tf.get_default_session()
+        for offset in range(0, num_examples, BATCH_SIZE):
+            batch_X, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
+            accuracy = sess.run(accuracy_operation, feed_dict={X: batch_X, y: batch_y})
+            total_accuracy += (accuracy*len(batch_X))
 
+        return total_accuracy / num_examples
+    """
 
-    pass
 tests.test_train_nn(train_nn)
 
 
@@ -151,21 +171,32 @@ def run():
 
         # TODO: Build NN using load_vgg, layers, and optimize function
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
-        layer_output = layers(layer3_out, layer4_out, layer7_out, num_classes)
         
-        optimize(layer_output, , , num_classes)
-
+        # Defines the tensor:
+        decoder_output = layers(layer3_out, layer4_out, layer7_out, num_classes)
+        logits, train_op, cross_entropy_loss = optimize(decoder_output, correct_label, learning_rate, num_classes)
 
         # TODO: Train NN using the train_nn function
-        train_nn()
+        train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
+             correct_label, keep_prob, learning_rate)
+
+        """
+        with tf.Session(graph=g) as sess:
+            tf.train.Saver().restore(sess, './model')   
+            testing_accuracy = evaluate(X_test_gray, y_test)
+            print("The testing accuracy is: {}".format(testing_accuracy))
+            training_accuracy = evaluate(X_train_gray, y_train)
+            print("The accuracy on the training set is: {}".format(training_accuracy))
+            validation_accuracy = evaluate(X_valid_gray, y_valid)
+            print("The accuracy on the validation set is: {}".format(validation_accuracy))
+        """
 
 
 
         # TODO: Save inference data using helper.save_inference_samples
-        #  helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        #helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
 
         # OPTIONAL: Apply the trained model to a video
-
 
 
 
