@@ -26,6 +26,7 @@ def load_vgg(sess, vgg_path):
     """
     # TODO: Implement function
     #   Use tf.saved_model.loader.load to load the model and weights
+    
     vgg_tag = 'vgg16'
     vgg_input_tensor_name = 'image_input:0'
     vgg_keep_prob_tensor_name = 'keep_prob:0'
@@ -33,14 +34,17 @@ def load_vgg(sess, vgg_path):
     vgg_layer4_out_tensor_name = 'layer4_out:0'
     vgg_layer7_out_tensor_name = 'layer7_out:0'
     
-    tf.saver.loader.load(sess, [vgg_tag], vgg_tag)
-
+    #tf.train.Saver().load(sess, [vgg_tag], vgg_tag)
+    tf.saved_model.loader.load(sess, [vgg_tag], vgg_path)
     graph = tf.get_default_graph()
-    w1 = graph.get_tensor_by_name(vgg_input_tensor_name)
-    keep = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
     
+    image_input = graph.get_tensor_by_name()
+    keep_prob = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
+    layer3_out = graph.get_tensor_by_name(vgg_layer3_out_tensor_name)
+    layer4_out = graph.get_tensor_by_name(vgg_layer4_out_tensor_name)
+    layer7_out = graph.get_tensor_by_name(vgg_layer7_out_tensor_name)
 
-    return input_image, keep_prob, layer3_out, layer4_out, layer7_out
+    return image_input, keep_prob, layer3_out, layer4_out, layer7_out
 
 tests.test_load_vgg(load_vgg, tf)
 
@@ -57,20 +61,20 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # TODO: Implement function
 
     # Upsample 2x
-    output = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output = tf.layers.conv2d_transpose(output, num_classes, kernel_size=4, strides=(2,2), padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    pool_4 = tf.nn.maxpool(vgg_layer4_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='valid')
-    output_deconv_1 = tf.add(output, pool_4)
+    output_tmp = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output_tmp = tf.layers.conv2d_transpose(output, num_classes, kernel_size=4, strides=(2,2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    pool_4 = tf.nn.maxpool(vgg_layer4_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
+    output_deconv_1 = tf.add(output_tmp, pool_4)
 
     # Upsample 2x
-    output_tmp = tf.layers.conv2d(output_deconv_1, num_classes, kernel_size=1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output_tmp = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=4, strides=(8,8), padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    pool_3 = tf.nn.maxpool(vgg_layer3_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='valid')
+    output_tmp = tf.layers.conv2d(output_deconv_1, num_classes, kernel_size=1, padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output_tmp = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=4, strides=(8,8), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    pool_3 = tf.nn.maxpool(vgg_layer3_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
     output_deconv_2 = tf.add(output_tmp, pool_3)
 
     # Upsample 8x
-    output_tmp = tf.layers.conv2d(output_deconv_2, num_classes, kernel_size=1, padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=16, strides=(8,8), padding='same', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output_tmp = tf.layers.conv2d(output_deconv_2, num_classes, kernel_size=1, padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=16, strides=(8,8), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     
 
     # some additional stuff here...
@@ -92,12 +96,13 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     """
     # TODO: Implement function
 
-    input = correct_label
-    logits = tf.reshape(input, (-1, num_classes))
+
+    # Flatten images
+    logits = tf.reshape(nn_last_layer, (-1, num_classes)) # Does the input needs to be rescaled?
+    correct_label_flattened = tf.reshape(correct_label, (-1, num_classes))
     
-    
-    cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits(logits=fc3, labels=one_hot_y)
-    loss_operation = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits, labels)
+    cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=correct_label)
+    loss_operation = tf.reduce_mean(cross_entropy_loss, labels)
     train_op = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
     return logits, train_op, cross_entropy_loss
@@ -128,7 +133,8 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                 input_image
                 correct_label
                 keep_prob
-                sess.run(train_op, feed_dict={X: input_image, y: correct_label})
+                sess.run(train_op, feed_dict={X: input_images, y: correct_labels})
+
 
     """
     def evaluate(X_data, y_data):
