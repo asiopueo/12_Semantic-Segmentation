@@ -43,10 +43,9 @@ def maybe_download_pretrained_vgg(data_dir):
         # Download vgg
         print('Downloading pre-trained vgg model...')
         with DLProgress(unit='B', unit_scale=True, miniters=1) as pbar:
-            urlretrieve(
-                'https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/vgg.zip',
-                os.path.join(vgg_path, vgg_filename),
-                pbar.hook)
+            urlretrieve('https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/vgg.zip',
+                        os.path.join(vgg_path, vgg_filename),
+                        pbar.hook)
 
         # Extract vgg
         print('Extracting model...')
@@ -106,7 +105,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
     Generate test output using the test images
     :param sess: TF session
     :param logits: TF Tensor for the logits
-    :param keep_prob: TF Placeholder for the dropout keep robability
+    :param keep_prob: TF Placeholder for the dropout keep probability
     :param image_pl: TF Placeholder for the image placeholder
     :param data_folder: Path to the folder that contains the datasets
     :param image_shape: Tuple - Shape of image
@@ -137,8 +136,10 @@ def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_p
 
     # Run NN on test images and save them to HD
     print('Training Finished. Saving test images to: {}'.format(output_dir))
-    image_outputs = gen_test_output(
-        sess, logits, keep_prob, input_image, os.path.join(data_dir, 'data_road/testing'), image_shape)
+    image_outputs = gen_test_output(sess, logits, keep_prob, input_image, 
+                                    os.path.join(data_dir, 'data_road/testing'), 
+                                    image_shape)
+    
     for name, image in image_outputs:
         scipy.misc.imsave(os.path.join(output_dir, name), image)
 

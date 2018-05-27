@@ -17,6 +17,22 @@ else:
     print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
+"""
+def evaluate(X_data, y_data):
+    num_examples = len(X_data)
+    total_accuracy = 0
+    sess = tf.get_default_session()
+    for offset in range(0, num_examples, BATCH_SIZE):
+        batch_X, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
+        accuracy = sess.run(accuracy_operation, feed_dict={X: batch_X, y: batch_y})
+        total_accuracy += (accuracy*len(batch_X))
+
+    return total_accuracy / num_examples
+"""
+
+
+
+
 def load_vgg(sess, vgg_path):
     """
     Load Pretrained VGG Model into TensorFlow.
@@ -38,7 +54,7 @@ def load_vgg(sess, vgg_path):
     tf.saved_model.loader.load(sess, [vgg_tag], vgg_path)
     graph = tf.get_default_graph()
     
-    image_input = graph.get_tensor_by_name()
+    image_input = graph.get_tensor_by_name(vgg_input_tensor_name)
     keep_prob = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
     layer3_out = graph.get_tensor_by_name(vgg_layer3_out_tensor_name)
     layer4_out = graph.get_tensor_by_name(vgg_layer4_out_tensor_name)
@@ -52,35 +68,34 @@ tests.test_load_vgg(load_vgg, tf)
 def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
-    :param vgg_layer7_out: TF Tensor for VGG Layer 3 output
+    :param vgg_layer7_out: TF Tensor for VGG Layer 7 output
     :param vgg_layer4_out: TF Tensor for VGG Layer 4 output
-    :param vgg_layer3_out: TF Tensor for VGG Layer 7 output
+    :param vgg_layer3_out: TF Tensor for VGG Layer 3 output
     :param num_classes: Number of classes to classify
     :return: The Tensor for the last layer of output
     """
-    # TODO: Implement function
+
+    layer3_conv_1x1 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=1, strides=(1,1), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3), kernel_initializer=tf.truncated_normal_initializer(stddev=0.01))
+    layer4_conv_1x1 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1,1), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3), kernel_initializer=tf.truncated_normal_initializer(stddev=0.01))
+    layer7_conv_1x1 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1,1), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3), kernel_initializer=tf.truncated_normal_initializer(stddev=0.01))
 
     # Upsample 2x
-    output_tmp = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output_tmp = tf.layers.conv2d_transpose(output, num_classes, kernel_size=4, strides=(2,2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    pool_4 = tf.nn.maxpool(vgg_layer4_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
-    output_deconv_1 = tf.add(output_tmp, pool_4)
+    output = tf.layers.conv2d_transpose(layer7_conv_1x1, num_classes, kernel_size=4, strides=(2,2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3), kernel_initializer=tf.truncated_normal_initializer(stddev=0.01))
+    output = tf.nn.max_pool(output, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
+    layer4_conv_1x1 = tf.nn.max_pool(layer4_conv_1x1, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
+    output_deconv_1 = tf.add(output, layer4_conv_1x1)
 
     # Upsample 2x
-    output_tmp = tf.layers.conv2d(output_deconv_1, num_classes, kernel_size=1, padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output_tmp = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=4, strides=(8,8), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    pool_3 = tf.nn.maxpool(vgg_layer3_out, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
-    output_deconv_2 = tf.add(output_tmp, pool_3)
+    output = tf.layers.conv2d_transpose(output_deconv_1, num_classes, kernel_size=4, strides=(8,8), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3), kernel_initializer=tf.truncated_normal_initializer(stddev=0.01))
+    output = tf.nn.max_pool(output, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
+    #layer3_conv_1x1 = tf.nn.max_pool(layer3_conv_1x1, ksize=[1,2,2,1], strides=[1,2,2,1], padding='VALID')
+    output_deconv_2 = tf.add(output, layer3_conv_1x1)
 
     # Upsample 8x
-    output_tmp = tf.layers.conv2d(output_deconv_2, num_classes, kernel_size=1, padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output = tf.layers.conv2d_transpose(output_tmp, num_classes, kernel_size=16, strides=(8,8), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output = tf.layers.conv2d_transpose(output_deconv_2, num_classes, kernel_size=16, strides=(8,8), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3), kernel_initializer=tf.truncated_normal_initializer(stddev=0.01))
     
+    return output
 
-    # some additional stuff here...
-    fcn_output = output
-
-    return fcn_output
 
 tests.test_layers(layers)
 
@@ -96,22 +111,25 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     """
     # TODO: Implement function
 
-
     # Flatten images
-    logits = tf.reshape(nn_last_layer, (-1, num_classes)) # Does the input needs to be rescaled?
+    logits = tf.reshape(nn_last_layer, (-1, num_classes)) # Does the input need to be rescaled?
     correct_label_flattened = tf.reshape(correct_label, (-1, num_classes))
     
     cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=correct_label)
-    loss_operation = tf.reduce_mean(cross_entropy_loss, labels)
-    train_op = tf.train.AdamOptimizer(learning_rate=learning_rate)
+
+    loss_operation = tf.reduce_mean(cross_entropy_loss)
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    train_op = optimizer.minimize(loss_operation)
 
     return logits, train_op, cross_entropy_loss
 
 tests.test_optimize(optimize)
 
 
+
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
              correct_label, keep_prob, learning_rate):
+
     """
     Train neural network and print out the loss during training.
     :param sess: TF Session
@@ -125,87 +143,74 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
-    # TODO: Implement function
-    for epoch in epochs:
-        for image, label in get_batches_fn(batch_size):
-            # Training
-            with tf.Session() as sess:
-                input_image
-                correct_label
-                keep_prob
-                sess.run(train_op, feed_dict={X: input_images, y: correct_labels})
+    
+    
+
+    # Creating a new session is not necessary here:
+    # g=tf.get_default_graph()
+    # with tf.Session(graph=g) as sess:
+    
+    init = tf.global_variables_initializer()
+    sess.run(init)
+
+    for epoch in range(epochs):
+        counter=0
+        for image_batch, label_batch in get_batches_fn(batch_size):
+            print("Batch No. {}".format(counter))
+            sess.run(train_op, feed_dict={  input_image: image_batch, correct_label: label_batch, keep_prob: 0.8})
+            counter += 1
+
+    #tf.train.Saver().save(sess, './model')
+    #tf.saved_model.simple_save(sess, './model')
 
 
-    """
-    def evaluate(X_data, y_data):
-        num_examples = len(X_data)
-        total_accuracy = 0
-        sess = tf.get_default_session()
-        for offset in range(0, num_examples, BATCH_SIZE):
-            batch_X, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
-            accuracy = sess.run(accuracy_operation, feed_dict={X: batch_X, y: batch_y})
-            total_accuracy += (accuracy*len(batch_X))
 
-        return total_accuracy / num_examples
-    """
+
 
 tests.test_train_nn(train_nn)
 
 
 def run():
-    num_classes = 2
-    image_shape = (160, 576)
-    data_dir = './data'
-    runs_dir = './runs'
-    tests.test_for_kitti_dataset(data_dir)
+    NUM_CLASSES = 2 # Class 1: 'Road'; class 2: 'Background'
+    IMAGE_SHAPE = (160, 576)
+    DATA_DIR = './data'
+    RUNS_DIR = './runs'
+    tests.test_for_kitti_dataset(DATA_DIR)
+
+    VGG_PATH = os.path.join(DATA_DIR, 'vgg')
+
+    EPOCHS = 10
+    BATCH_SIZE = 8  # 8 max on a GTX1060, 6GB VRAM
+    LEARNING_RATE = 0.001
 
     # Download pretrained vgg model
-    helper.maybe_download_pretrained_vgg(data_dir)
+    helper.maybe_download_pretrained_vgg(DATA_DIR)
 
     # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
     # You'll need a GPU with at least 10 teraFLOPS to train on.
-    #  https://www.cityscapes-dataset.com/
+    # https://www.cityscapes-dataset.com/
 
     with tf.Session() as sess:
-        # Path to vgg model
-        vgg_path = os.path.join(data_dir, 'vgg')
-        # Create function to get batches
-        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
+        # Create generating function for batches
+        get_batches_fn = helper.gen_batch_function(os.path.join(DATA_DIR, 'data_road/training'), IMAGE_SHAPE)
 
         # OPTIONAL: Augment Images for better results
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
-        # TODO: Build NN using load_vgg, layers, and optimize function
-        input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
+        # Loads data from the pretrained vgg-model:
+        input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, VGG_PATH)
         
         # Defines the tensor:
         decoder_output = layers(layer3_out, layer4_out, layer7_out, num_classes)
-        logits, train_op, cross_entropy_loss = optimize(decoder_output, correct_label, learning_rate, num_classes)
+        correct_label = tf.placeholder(dtype=tf.bool, shape=(None, 160, 576, 2))
+        
+        logits, train_op, cross_entropy_loss = optimize(decoder_output, correct_label, LEARNING_RATE, NUM_CLASSES)
 
-        # TODO: Train NN using the train_nn function
-        train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
-             correct_label, keep_prob, learning_rate)
-
-        """
-        with tf.Session(graph=g) as sess:
-            tf.train.Saver().restore(sess, './model')   
-            testing_accuracy = evaluate(X_test_gray, y_test)
-            print("The testing accuracy is: {}".format(testing_accuracy))
-            training_accuracy = evaluate(X_train_gray, y_train)
-            print("The accuracy on the training set is: {}".format(training_accuracy))
-            validation_accuracy = evaluate(X_valid_gray, y_valid)
-            print("The accuracy on the validation set is: {}".format(validation_accuracy))
-        """
-        """
-        with tf.Session(graph = g) as sess:
-            tf.train.Saver().restore(sess,'./model')
-            top_k = tf.nn.top_k(sess.run(fc3, feed_dict={X: img_gray}), k=5, sorted=True)
-
-            print(sess.run(top_k))
-        """
+        train_nn(sess, EPOCHS, BATCH_SIZE, get_batches_fn, train_op, cross_entropy_loss, input_image,
+             correct_label, keep_prob, LEARNING_RATE)
 
         # TODO: Save inference data using helper.save_inference_samples
-        #helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(RUNS_DIR, DATA_DIR, sess, IMAGE_SHAPE, logits, keep_prob, input_image)
 
         # OPTIONAL: Apply the trained model to a video
 
@@ -214,3 +219,24 @@ def run():
 
 if __name__ == '__main__':
     run()
+
+
+
+
+
+"""
+with tf.Session(graph=g) as sess:
+    tf.train.Saver().restore(sess, './model')   
+    testing_accuracy = evaluate(X_test_gray, y_test)
+    print("The testing accuracy is: {}".format(testing_accuracy))
+    training_accuracy = evaluate(X_train_gray, y_train)
+    print("The accuracy on the training set is: {}".format(training_accuracy))
+    validation_accuracy = evaluate(X_valid_gray, y_valid)
+    print("The accuracy on the validation set is: {}".format(validation_accuracy))
+"""
+"""
+with tf.Session(graph = g) as sess:
+    tf.train.Saver().restore(sess,'./model')
+    top_k = tf.nn.top_k(sess.run(fc3, feed_dict={X: img_gray}), k=5, sorted=True)
+    print(sess.run(top_k))
+"""
