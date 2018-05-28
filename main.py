@@ -4,6 +4,7 @@ import helper
 import warnings
 from distutils.version import LooseVersion
 import project_tests as tests
+import numpy as np
 
 
 # Check TensorFlow Version
@@ -24,7 +25,7 @@ def evaluate(X_data, y_data):
     sess = tf.get_default_session()
     for offset in range(0, num_examples, BATCH_SIZE):
         batch_X, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
-        accuracy = sess.run(accuracy_operation, feed_dict={X: batch_X, y: batch_y})
+        accuracy = sess.run(accuracy_operation, feed_dict={input_image: batch_X, correct_label: batch_y})
         total_accuracy += (accuracy*len(batch_X))
 
     return total_accuracy / num_examples
@@ -144,24 +145,22 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param learning_rate: TF Placeholder for learning rate
     """
     
-    
+    # Creating a new session is not necessary here
+    sess.run(tf.global_variables_initializer())
 
-    # Creating a new session is not necessary here:
-    # g=tf.get_default_graph()
-    # with tf.Session(graph=g) as sess:
-    
-    init = tf.global_variables_initializer()
-    sess.run(init)
-
+    #saver = tf.train.Saver()
     for epoch in range(epochs):
         counter=0
         for image_batch, label_batch in get_batches_fn(batch_size):
-            print("Batch No. {}".format(counter))
-            sess.run(train_op, feed_dict={  input_image: image_batch, correct_label: label_batch, keep_prob: 0.8})
+            _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={ input_image: image_batch, correct_label: label_batch, keep_prob: 0.8 })
+            print("Batch No. {}, Epoch: {}/{}".format(counter, epoch+1, epochs))
+            print("Mean cross entropy loss: {}".format(np.mean(loss)))
             counter += 1
-
-    #tf.train.Saver().save(sess, './model')
-    #tf.saved_model.simple_save(sess, './model')
+    
+    #tf.train.export_meta_graph('./meta/model.meta')
+    #tf.train.write_graph(sess.graph_def, './checkpoints/', 'model.pb', False)
+    #saver.save(sess, './model')
+    #tf.saved_model.simple_save(sess, './model1', inputs={ "input_image": input_image}, outputs={ "correct_label": correct_label})
 
 
 
@@ -171,7 +170,7 @@ tests.test_train_nn(train_nn)
 
 
 def run():
-    NUM_CLASSES = 2 # Class 1: 'Road'; class 2: 'Background'
+    NUM_CLASSES = 2 # class 1: 'Road'; class 2: 'Background'
     IMAGE_SHAPE = (160, 576)
     DATA_DIR = './data'
     RUNS_DIR = './runs'
@@ -179,8 +178,8 @@ def run():
 
     VGG_PATH = os.path.join(DATA_DIR, 'vgg')
 
-    EPOCHS = 10
-    BATCH_SIZE = 8  # 8 max on a GTX1060, 6GB VRAM
+    EPOCHS = 10 # 10
+    BATCH_SIZE = 8  # max. 8 on a GTX1060, 6GB VRAM
     LEARNING_RATE = 0.001
 
     # Download pretrained vgg model
@@ -201,7 +200,7 @@ def run():
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, VGG_PATH)
         
         # Defines the tensor:
-        decoder_output = layers(layer3_out, layer4_out, layer7_out, num_classes)
+        decoder_output = layers(layer3_out, layer4_out, layer7_out, NUM_CLASSES)
         correct_label = tf.placeholder(dtype=tf.bool, shape=(None, 160, 576, 2))
         
         logits, train_op, cross_entropy_loss = optimize(decoder_output, correct_label, LEARNING_RATE, NUM_CLASSES)

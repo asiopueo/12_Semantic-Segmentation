@@ -5,7 +5,8 @@ import os.path
 import scipy.misc
 import shutil
 import zipfile
-import time
+#import time
+from datetime import datetime
 import tensorflow as tf
 from glob import glob
 from urllib.request import urlretrieve
@@ -114,9 +115,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
     for image_file in glob(os.path.join(data_folder, 'image_2', '*.png')):
         image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
 
-        im_softmax = sess.run(
-            [tf.nn.softmax(logits)],
-            {keep_prob: 1.0, image_pl: [image]})
+        im_softmax = sess.run([tf.nn.softmax(logits)],{keep_prob: 1.0, image_pl: [image]})
         im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
         segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
         mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
@@ -129,7 +128,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
 
 def save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image):
     # Make folder for current run
-    output_dir = os.path.join(runs_dir, str(time.time()))
+    output_dir = os.path.join(runs_dir, str(datetime.now().strftime("%Y%m%d_%H%M")))
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir)
