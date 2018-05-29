@@ -5,9 +5,9 @@
 ## 1. Introduction
 Fully convolutional network (FCN)
 
-In this project, we implement the fully convolutional network *FCN-VGG16* developed in the seminal paper by Shelhamer, Long, and Darrell, [Fully Convolutional Networks for Semantic Segmentation][1], and apply it to a subset of images from the KITTI-collection.
+In this project, we implement the fully convolutional network *FCN-VGG16* developed in the seminal paper by Shelhamer, Long, and Darrell, [Fully Convolutional Networks for Semantic Segmentation][1], and apply it to the [KITTI-Road-Dataset][2].
 
-The collection consists of about 289 images together with their labeled ground truth images.
+The collection consists of about 289 images together with their labeled ground truth images:
 
 ![](./data/data_road/training/image_2/uu_000012.png)
 ![](./data/data_road/training/gt_image_2/uu_road_000012.png)
@@ -34,7 +34,7 @@ Apart from the `run()`-function which is the entry point of the program, there a
 
 `layers()`: This function defines the graph for the FCN. Using the tensor handles from above, we define the skip-layers using `tf.add()` and perform three deconvolutions using `tf.layers.conv2d_transpose()`.
 
-`optimize()`: Chooses an optimization operation. In our case, we chose an [Adam-optimizer][2].
+`optimize()`: Chooses an optimization operation. In our case, we chose an [Adam-optimizer][3].
 
 `train_nn()`: This function trains the Fully-convolutional neural network. However, before doing that, it will initialize all variables of the network first.
 
@@ -86,4 +86,5 @@ One can clearly see that the roads are largely labeled correctly. However, false
 
 
 [1]: https://arxiv.org/abs/1605.06211
-[2]: https://arxiv.org/abs/1412.6980
+[2]: http://www.cvlibs.net/datasets/kitti/eval_road.php
+[3]: https://arxiv.org/abs/1412.6980
