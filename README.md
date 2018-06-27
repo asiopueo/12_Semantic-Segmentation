@@ -9,8 +9,8 @@ In this project, we implement the fully convolutional network *FCN-VGG16* develo
 
 The collection consists of about 289 images together with their labeled ground truth images:
 
-![](./data/data_road/training/image_2/uu_000012.png)
-![](./data/data_road/training/gt_image_2/uu_road_000012.png)
+![](./images/uu_000012.png)
+![](./images/uu_road_000012.png)
 
 The pixels of an image are classified into two classes, **road** and **background**.
 
