@@ -59,22 +59,22 @@ The inference iamges are saved in the `runs/` folder, each within a separate dir
 The following set of images are the inference results without L2-regularizer (first set) and with one:
 
 Image without L2-regularizer:
-![](./runs/20180528_2022/um_000022.png)
+![](./images/result00.png)
 
 Image with L2-regularizer:
-![](./runs/20180529_1136/um_000022.png)
+![](./images/result01.png)
 
 Image without L2-regularizer:
-![](./runs/20180528_2022/umm_000022.png)
+![](./images/result10.png)
 
 Image with L2-regularizer:
-![](./runs/20180529_1136/umm_000022.png)
+![](./images/result11.png)
 
 Image without L2-regularizer:
-![](./runs/20180528_2022/uu_000022.png)
+![](./images/result20.png)
 
 Image with L2-regularizer:
-![](./runs/20180529_1136/uu_000022.png)
+![](./images/result21.png)
 
 
 One can clearly see that the roads are largely labeled correctly. However, false positives stand out, such as the incorrectly classified segments of the sidewalks in the first and third image, or the pylon in the second image.
