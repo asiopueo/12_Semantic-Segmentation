@@ -59,21 +59,27 @@ The inference iamges are saved in the `runs/` folder, each within a separate dir
 The following set of images are the inference results without L2-regularizer (first set) and with one:
 
 Image without L2-regularizer:
+
 ![](./images/result00.png)
 
 Image with L2-regularizer:
+
 ![](./images/result01.png)
 
 Image without L2-regularizer:
+
 ![](./images/result10.png)
 
 Image with L2-regularizer:
+
 ![](./images/result11.png)
 
 Image without L2-regularizer:
+
 ![](./images/result20.png)
 
 Image with L2-regularizer:
+
 ![](./images/result21.png)
 
 
